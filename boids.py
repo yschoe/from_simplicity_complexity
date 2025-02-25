@@ -4,6 +4,10 @@ from dataclasses import dataclass
 import math
 from collections import deque
 
+import argparse, sys
+
+
+
 @dataclass
 class Boid:
     x: float
@@ -16,7 +20,7 @@ class Boid:
 
 # three main rules: fly_towards_center, avoid_others, and match_velocity
 class BoidSimulation:
-    def __init__(self, width=1600, height=1000, perception_delay=5):
+    def __init__(self, width=1024, height=768, perception_delay=5, num_boids=100, vis_range=75, maxlen=35):
         pygame.init()
         self.width = width
         self.height = height
@@ -24,8 +28,8 @@ class BoidSimulation:
         pygame.display.set_caption("Boids with Perception Delay")
         
         self.boids = []
-        self.num_boids = 850
-        self.visual_range = 75
+        self.num_boids = num_boids
+        self.visual_range = vis_range
         self.visual_range_sq = self.visual_range * self.visual_range  # squared visual range for comparisons
         self.cell_size = self.visual_range  # each cell is roughly the size of the visual range
         self.clock = pygame.time.Clock()
@@ -36,8 +40,8 @@ class BoidSimulation:
         # Initialize boids with random positions and velocities
         for _ in range(self.num_boids):
             # Initialize position and velocity history deques with initial values
-            position_history = deque(maxlen=10)  # Limit history to 10 steps
-            velocity_history = deque(maxlen=10)  # Limit history to 10 steps
+            position_history = deque(maxlen=maxlen)  # Limit history to 10 steps
+            velocity_history = deque(maxlen=maxlen)  # Limit history to 10 steps
             
             x = np.random.rand() * width
             y = np.random.rand() * height
@@ -45,7 +49,7 @@ class BoidSimulation:
             dy = np.random.rand() * 10 - 5
             
             # Fill history with initial position and velocity
-            for _ in range(10):
+            for _ in range(maxlen):
                 position_history.append((x, y))
                 velocity_history.append((dx, dy))
             
@@ -158,6 +162,12 @@ class BoidSimulation:
             boid.dx = (boid.dx / speed) * speed_limit
             boid.dy = (boid.dy / speed) * speed_limit
 
+    # Ensure the circle's center is within screen bounds, considering its radius
+    def clamp_circle(self, x, y, radius):
+        x = max(radius, min(self.width - radius, x))
+        y = max(radius, min(self.height - radius, y))
+        return x, y
+
     def update_boids(self):
         # Build a spatial grid (a dictionary mapping (cell_x, cell_y) -> list of boids)
         grid = {}
@@ -205,6 +215,7 @@ class BoidSimulation:
             # Optionally visualize the delayed position that other boids perceive
             if len(boid.position_history) >= self.perception_delay:
                 delayed_x, delayed_y = boid.position_history[-self.perception_delay]
+                delayed_x, delayed_y = self.clamp_circle(delayed_x, delayed_y, 2)
                 pygame.draw.circle(self.screen, (255, 100, 100), (int(delayed_x), int(delayed_y)), 2)
 
         # Display the current perception delay on screen
@@ -236,8 +247,18 @@ class BoidSimulation:
         pygame.quit()
 
 def main():
+    # process command line arguments
+    cmd = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    cmd.add_argument('--maxlen', type=int, default=35, help='max buffer length');
+    cmd.add_argument('--delay', type=int, default=1, help='delay');
+    cmd.add_argument('--width', type=int, default=1024, help='arena width');
+    cmd.add_argument('--height', type=int, default=768, help='arena height');
+    cmd.add_argument('--num_boids', type=int, default=100, help='number of boids');
+    cmd.add_argument('--vis_range', type=int, default=75, help='vis_range');
+    args=cmd.parse_args()
+
     # set perception delay
-    sim = BoidSimulation(perception_delay=7)
+    sim = BoidSimulation(maxlen=args.maxlen, perception_delay=args.delay, width=args.width, height=args.height, num_boids=args.num_boids, vis_range=args.vis_range)
     sim.run()
 
 if __name__ == "__main__":
