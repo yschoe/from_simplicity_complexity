@@ -20,7 +20,7 @@ class Boid:
 
 # three main rules: fly_towards_center, avoid_others, and match_velocity
 class BoidSimulation:
-    def __init__(self, width=1024, height=768, perception_delay=5, num_boids=100, vis_range=75, maxlen=35):
+    def __init__(self, width=1024, height=768, perception_delay=5, num_boids=100, vis_range=75):
         pygame.init()
         self.width = width
         self.height = height
@@ -36,6 +36,8 @@ class BoidSimulation:
         
         # Perception delay (number of frames)
         self.perception_delay = perception_delay
+
+        maxlen = perception_delay+1
         
         # Initialize boids with random positions and velocities
         for _ in range(self.num_boids):
@@ -49,7 +51,7 @@ class BoidSimulation:
             dy = np.random.rand() * 10 - 5
             
             # Fill history with initial position and velocity
-            for _ in range(maxlen):
+            for _ in range(perception_delay+1):
                 position_history.append((x, y))
                 velocity_history.append((dx, dy))
             
@@ -249,7 +251,7 @@ class BoidSimulation:
 def main():
     # process command line arguments
     cmd = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    cmd.add_argument('--maxlen', type=int, default=35, help='max buffer length');
+    cmd.add_argument('--maxlen', type=int, default=35, help='max buffer length (obsolete), maxlen = delay+1');
     cmd.add_argument('--delay', type=int, default=1, help='delay');
     cmd.add_argument('--width', type=int, default=1024, help='arena width');
     cmd.add_argument('--height', type=int, default=768, help='arena height');
@@ -258,7 +260,7 @@ def main():
     args=cmd.parse_args()
 
     # set perception delay
-    sim = BoidSimulation(maxlen=args.maxlen, perception_delay=args.delay, width=args.width, height=args.height, num_boids=args.num_boids, vis_range=args.vis_range)
+    sim = BoidSimulation(perception_delay=args.delay, width=args.width, height=args.height, num_boids=args.num_boids, vis_range=args.vis_range)
     sim.run()
 
 if __name__ == "__main__":
