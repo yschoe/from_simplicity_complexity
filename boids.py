@@ -6,8 +6,6 @@ from collections import deque
 
 import argparse, sys
 
-
-
 @dataclass
 class Boid:
     x: float
@@ -18,7 +16,6 @@ class Boid:
     position_history: deque  # Will store (x, y) tuples
     velocity_history: deque  # Will store (dx, dy) tuples
 
-# three main rules: fly_towards_center, avoid_others, and match_velocity
 class BoidSimulation:
     def __init__(self, width=1024, height=768, perception_delay=5, num_boids=100, vis_range=75):
         pygame.init()
@@ -37,13 +34,16 @@ class BoidSimulation:
         # Perception delay (number of frames)
         self.perception_delay = perception_delay
 
-        maxlen = perception_delay+1
+        # Add a flag to toggle trajectory display
+        self.show_trajectories = False
+
+        maxlen = perception_delay + 1
         
         # Initialize boids with random positions and velocities
         for _ in range(self.num_boids):
             # Initialize position and velocity history deques with initial values
-            position_history = deque(maxlen=maxlen)  # Limit history to 10 steps
-            velocity_history = deque(maxlen=maxlen)  # Limit history to 10 steps
+            position_history = deque(maxlen=100)  # Limit history to 100 steps
+            velocity_history = deque(maxlen=maxlen)  # Limit history to perception delay steps
             
             x = np.random.rand() * width
             y = np.random.rand() * height
@@ -51,7 +51,7 @@ class BoidSimulation:
             dy = np.random.rand() * 10 - 5
             
             # Fill history with initial position and velocity
-            for _ in range(perception_delay+1):
+            for _ in range(self.perception_delay + 1):
                 position_history.append((x, y))
                 velocity_history.append((dx, dy))
             
@@ -219,6 +219,17 @@ class BoidSimulation:
                 delayed_x, delayed_y = boid.position_history[-self.perception_delay]
                 delayed_x, delayed_y = self.clamp_circle(delayed_x, delayed_y, 2)
                 pygame.draw.circle(self.screen, (255, 100, 100), (int(delayed_x), int(delayed_y)), 2)
+            
+            # Draw the trajectory if the flag is set
+            if self.show_trajectories and len(boid.position_history) > 1:
+                points = list(boid.position_history)
+                for i in range(1, len(points)):
+                    start_pos = points[i - 1]
+                    end_pos = points[i]
+                    # Calculate the fade color
+                    fade_factor = i / len(points)
+                    color = (int(100 * fade_factor), int(255 * fade_factor), int(100 * fade_factor))
+                    pygame.draw.line(self.screen, color, start_pos, end_pos, 1)
 
         # Display the current perception delay on screen
         font = pygame.font.SysFont(None, 36)
@@ -241,6 +252,9 @@ class BoidSimulation:
                         self.perception_delay = min(10, self.perception_delay + 1)
                     elif event.key == pygame.K_DOWN:
                         self.perception_delay = max(1, self.perception_delay - 1)
+                    # Toggle trajectory display with 't' key
+                    elif event.key == pygame.K_t:
+                        self.show_trajectories = not self.show_trajectories
 
             self.update_boids()
             self.draw()
@@ -257,7 +271,7 @@ def main():
     cmd.add_argument('--height', type=int, default=768, help='arena height');
     cmd.add_argument('--num_boids', type=int, default=100, help='number of boids');
     cmd.add_argument('--vis_range', type=int, default=75, help='vis_range');
-    args=cmd.parse_args()
+    args = cmd.parse_args()
 
     # set perception delay
     sim = BoidSimulation(perception_delay=args.delay, width=args.width, height=args.height, num_boids=args.num_boids, vis_range=args.vis_range)
